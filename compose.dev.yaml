@@ -1,0 +1,122 @@
+services:
+  apache:
+    container_name: dockerized_laravel_dev-apache
+    build:
+      context: .
+      dockerfile: ./docker/development/apache/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www/html
+      - ./docker/development/apache/000-default.conf:/etc/apache2/sites-available/000-default.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - php-fpm
+    networks:
+      - laravel-development
+    command: >
+      bash -c "
+        mkdir -p /var/www/html/storage/logs &&
+        mkdir -p /var/www/html/storage/framework/{sessions,views,cache} &&
+        chown -R www-data:www-data /var/www/html &&
+        chmod -R 775 /var/www/html/storage &&
+        apache2-foreground"
+
+  php-fpm:
+    container_name: dockerized_laravel_dev-php-fpm
+    build:
+      context: .
+      dockerfile: ./docker/development/php-fpm/Dockerfile
+      args:
+        USER_ID: ${UID:-1000}
+        GROUP_ID: ${GID:-1000}
+    volumes:
+      - ./:/var/www/html
+      - ./docker/development/php/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
+      - ./docker/development/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
+    env_file:
+      - .env
+    networks:
+      - laravel-development
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      bash -c "
+        mkdir -p /var/www/html/storage/logs &&
+        mkdir -p /var/www/html/storage/framework/{sessions,views,cache} &&
+        chmod -R 775 /var/www/html/storage &&
+        php-fpm"
+
+  mysql:
+    container_name: dockerized_laravel_dev-mysql
+    image: mysql:8.0
+    command: --port=3307
+    ports:
+      - "3307:3307"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
+      MYSQL_TCP_PORT: 3307
+    volumes:
+      - mysql-data-development:/var/lib/mysql
+    networks:
+      - laravel-development
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 'localhost' -u'root' -p'${DB_PASSWORD}' --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  workspace:
+    container_name: dockerized_laravel_dev-workspace
+    build:
+      context: .
+      dockerfile: ./docker/development/workspace/Dockerfile
+      args:
+        PHP_VERSION: "8.3"
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    volumes:
+      - ./:/var/www/html:rw
+    ports:
+      - '${VITE_PORT:-5173}:5173'
+    tty: true
+    stdin_open: true
+    env_file:
+      - .env
+    networks:
+      - laravel-development
+    depends_on:
+      mysql:
+        condition: service_healthy
+      php-fpm:
+        condition: service_started
+    command: serve
+    user: root  # Run as root user to handle permissions
+    environment:
+      - USER_ID=${UID:-1000}
+      - GROUP_ID=${GID:-1000}
+
+  redis:
+    container_name: dockerized_laravel_dev-redis
+    image: redis:alpine
+    networks:
+      - laravel-development
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  laravel-development:
+    name: dockerized_laravel_dev-network
+
+volumes:
+  mysql-data-development:
+    name: dockerized_laravel_dev-mysql-data

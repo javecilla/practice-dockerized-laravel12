@@ -1,0 +1,88 @@
+services:
+  apache:
+    container_name: dockerized_laravel_prod-apache
+    build:
+      context: .
+      dockerfile: ./docker/production/apache/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - laravel-storage-production:/var/www/html/storage:ro
+      - laravel-public-assets:/var/www/html/public/build:ro
+    ports:
+      - "80:80"
+    networks:
+      - laravel-production
+    depends_on:
+      php:
+        condition: service_healthy
+
+  php:
+    container_name: dockerized_laravel_prod-php
+    build:
+      context: .
+      dockerfile: ./docker/common/php/Dockerfile
+      target: production
+      args:
+        PHP_VERSION: "8.3"
+    restart: unless-stopped
+    volumes:
+      - laravel-storage-production:/var/www/html/storage
+      - laravel-public-assets:/var/www/html/public/build
+    env_file:
+      - .env
+    networks:
+      - laravel-production
+    healthcheck:
+      test: ["CMD", "php", "-v"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    container_name: dockerized_laravel_prod-mysql
+    image: mysql:8.0
+    restart: unless-stopped
+    user: mysql
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql-data-production:/var/lib/mysql
+    networks:
+      - laravel-production
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    container_name: dockerized_laravel_prod-redis
+    image: redis:alpine
+    restart: unless-stopped
+    networks:
+      - laravel-production
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  laravel-production:
+    name: dockerized_laravel_prod-network
+
+volumes:
+  mysql-data-production:
+    name: dockerized_laravel_prod-mysql-data
+  laravel-storage-production:
+    name: dockerized_laravel_prod-storage
+  laravel-public-assets:
+    name: dockerized_laravel_prod-assets
