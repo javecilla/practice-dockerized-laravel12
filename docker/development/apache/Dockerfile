@@ -46,5 +46,11 @@ RUN mkdir -p ${APACHE_LOG_DIR} \
     && chown -R www-data:www-data ${APACHE_LOG_DIR} \
     && chmod -R 755 ${APACHE_LOG_DIR}
 
-# Change ownership of web root
-RUN chown -R www-data:www-data /var/www/html
+# Create Laravel directory structure and set permissions
+RUN mkdir -p /var/www/html/storage/app/public && \
+    mkdir -p /var/www/html/storage/framework/{sessions,views,cache} && \
+    mkdir -p /var/www/html/storage/logs && \
+    mkdir -p /var/www/html/bootstrap/cache && \
+    chown -R www-data:www-data /var/www/html && \
+    chmod -R 775 /var/www/html && \
+    chmod -R ugo+rw /var/www/html/storage /var/www/html/bootstrap/cache

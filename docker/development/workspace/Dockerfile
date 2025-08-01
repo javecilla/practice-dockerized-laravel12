@@ -82,7 +82,7 @@ RUN echo 'export NVM_DIR="$HOME/.nvm"' >> /home/laravel/.bashrc && \
 WORKDIR /var/www/html
 
 # Set an entrypoint script that will handle initialization and keep the container running
-COPY --chmod=0755 docker/development/workspace/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY --chmod=0755 docker/development/workspace/dev-entrypoint.sh /usr/local/bin/dev-entrypoint.sh
 
-ENTRYPOINT ["docker-entrypoint.sh"]
+ENTRYPOINT ["dev-entrypoint.sh"]
 CMD ["serve"]

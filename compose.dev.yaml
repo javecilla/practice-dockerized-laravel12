@@ -6,7 +6,7 @@ services:
       dockerfile: ./docker/development/apache/Dockerfile
     restart: unless-stopped
     volumes:
-      - ./:/var/www/html
+      - ./:/var/www/html:rw
       - ./docker/development/apache/000-default.conf:/etc/apache2/sites-available/000-default.conf:ro
     ports:
       - "80:80"
@@ -14,13 +14,7 @@ services:
       - php-fpm
     networks:
       - laravel-development
-    command: >
-      bash -c "
-        mkdir -p /var/www/html/storage/logs &&
-        mkdir -p /var/www/html/storage/framework/{sessions,views,cache} &&
-        chown -R www-data:www-data /var/www/html &&
-        chmod -R 775 /var/www/html/storage &&
-        apache2-foreground"
+    command: apache2-foreground
 
   php-fpm:
     container_name: dockerized_laravel_dev-php-fpm
@@ -31,9 +25,11 @@ services:
         USER_ID: ${UID:-1000}
         GROUP_ID: ${GID:-1000}
     volumes:
-      - ./:/var/www/html
-      - ./docker/development/php/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
-      - ./docker/development/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
+      - ./:/var/www/html:rw
+      - ./docker/development/php/php.ini:/usr/local/etc/php/conf.d/z-php.ini:ro
+      - ./docker/development/php/opcache.ini:/usr/local/etc/php/conf.d/z-opcache.ini:ro
+      - ./docker/development/php/xdebug.ini:/usr/local/etc/php/conf.d/z-xdebug.ini:ro
+    user: "${UID:-1000}:${GID:-1000}"
     env_file:
       - .env
     networks:
@@ -43,12 +39,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: >
-      bash -c "
-        mkdir -p /var/www/html/storage/logs &&
-        mkdir -p /var/www/html/storage/framework/{sessions,views,cache} &&
-        chmod -R 775 /var/www/html/storage &&
-        php-fpm"
 
   mysql:
     container_name: dockerized_laravel_dev-mysql
@@ -81,10 +71,15 @@ services:
         PHP_VERSION: "8.3"
         UID: ${UID:-1000}
         GID: ${GID:-1000}
+        XDEBUG_ENABLED: "true"
+        XDEBUG_MODE: "debug"
+        XDEBUG_HOST: "host.docker.internal"
     volumes:
       - ./:/var/www/html:rw
+      - ./docker/development/php/xdebug.ini:/usr/local/etc/php/conf.d/z-xdebug.ini:ro
     ports:
       - '${VITE_PORT:-5173}:5173'
+      - '8000:8000'  # For artisan serve
     tty: true
     stdin_open: true
     env_file:

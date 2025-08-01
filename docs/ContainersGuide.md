@@ -7,18 +7,24 @@ This document details the purpose and configuration of each container in our Lar
 ### 1. dockerized_laravel_dev-apache
 **Purpose**: Web Server
 - Handles HTTP requests and serves web content
-- Based on Apache 2.4 with PHP 8.3
+- Based on Apache 2.4 with mod_proxy_fcgi
 - Configured with:
   - mod_rewrite for Laravel routing
   - mod_proxy_fcgi for PHP-FPM communication
   - Virtual host for `laravel12-docker.practice.test`
+  - ProxyPassMatch configuration for PHP requests
 - Exposes port 80 for web access
-- Forwards PHP requests to PHP-FPM container
+- Efficiently forwards PHP requests to PHP-FPM container
 
 ### 2. dockerized_laravel_dev-php-fpm
 **Purpose**: PHP Process Manager
 - Runs PHP 8.3 with PHP-FPM
 - Listens on port 9000
+- Custom php.ini configuration:
+  - Development-oriented settings
+  - Error display enabled
+  - Increased memory limits
+  - Session and upload configurations
 - Contains essential PHP extensions:
   - PDO, MySQL, Redis
   - GD for image processing
@@ -29,6 +35,7 @@ This document details the purpose and configuration of each container in our Lar
   - Maximum error reporting
   - Optimized for development
 - Processes PHP requests from Apache
+- Configured for optimal development workflow
 
 ### 3. dockerized_laravel_dev-mysql
 **Purpose**: Database Server
@@ -86,15 +93,19 @@ This document details the purpose and configuration of each container in our Lar
 ### 2. dockerized_laravel_prod-php-fpm
 **Purpose**: Production PHP Runtime
 - Optimized PHP-FPM 8.3:
+  - Custom production php.ini
   - OpCache configured for production
   - Error display disabled
   - Production error logging
   - No development extensions
   - Tuned FPM process management
+  - Optimized pool configuration
 - Security focused:
   - Minimal PHP modules
   - Restricted file permissions
   - Secure PHP settings
+  - Production-grade error handling
+  - Controlled file access permissions
 
 ### 3. dockerized_laravel_prod-mysql
 **Purpose**: Production Database

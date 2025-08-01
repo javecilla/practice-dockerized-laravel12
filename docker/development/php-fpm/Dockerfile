@@ -1,44 +1,66 @@
 FROM php:8.3-fpm
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Set environment variables and arguments
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
+# Install system dependencies and build tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
+    netcat-traditional \
+    zip \
+    unzip \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
+    libzip-dev \
+    libicu-dev \
+    libpq-dev \
+    && docker-php-ext-install -j$(nproc) \
+    pdo_mysql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
     zip \
-    unzip \
-    libzip-dev
+    intl \
+    opcache \
+    && pecl install redis xdebug \
+    && docker-php-ext-enable redis xdebug \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+# Configure Xdebug
+RUN echo "xdebug.mode=debug" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.client_host=host.docker.internal" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.start_with_request=yes" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
-
-# Get latest Composer
+# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Copy PHP configurations
+COPY docker/development/php/*.ini /usr/local/etc/php/conf.d/
+
+# Setup permissions for www-data user
+RUN usermod -u ${USER_ID} www-data \
+    && groupmod -g ${GROUP_ID} www-data \
+    && mkdir -p /var/www/html \
+    && mkdir -p /var/www/html/storage/logs \
+    && mkdir -p /var/www/html/storage/framework/{sessions,views,cache} \
+    && mkdir -p /var/www/html/bootstrap/cache \
+    && chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 /var/www/html
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Add entrypoint script
-COPY docker/development/php-fpm/entrypoint.sh /usr/local/bin/entrypoint
-RUN chmod +x /usr/local/bin/entrypoint
+# Copy the common application entrypoint
+COPY --chmod=0755 docker/common/php-fpm/app-entrypoint.sh /usr/local/bin/app-entrypoint.sh
 
-# Set user to be same as host user
-ARG USER_ID=1000
-ARG GROUP_ID=1000
+# Switch to www-data user
+USER www-data
 
-RUN groupadd -g ${GROUP_ID} laravel && \
-    useradd -u ${USER_ID} -g laravel -m laravel && \
-    mkdir -p /var/www/html/storage/logs && \
-    mkdir -p /var/www/html/storage/framework/{sessions,views,cache} && \
-    chown -R laravel:laravel /var/www/html && \
-    chmod -R 775 /var/www/html/storage
-
-USER laravel
-
-ENTRYPOINT ["entrypoint"]
+ENTRYPOINT ["app-entrypoint.sh"]
 CMD ["php-fpm"]

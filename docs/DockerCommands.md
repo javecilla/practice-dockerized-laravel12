@@ -102,6 +102,8 @@ docker compose -f compose.dev.yaml logs workspace
 docker compose -f compose.dev.yaml logs -f workspace
 # Show container resource consumption
 docker compose -f compose.dev.yaml top
+# To verify the permissions are correct
+docker exec dockerized_laravel_dev-apache ls -la /var/www/html/storage
 ```
 
 ### Docker System Commands

@@ -71,8 +71,8 @@ This guide explains how to set up and run your Laravel application using Docker.
 2. Container Configuration:
    | Container Name | Purpose | Port | Notes |
    |---------------|---------|------|-------|
-   | `dockerized_laravel_dev-apache` | Web Server | 80 | Apache with PHP module |
-   | `dockerized_laravel_dev-php-fpm` | PHP Runtime | 9000 | PHP-FPM process manager |
+   | `dockerized_laravel_dev-apache` | Web Server | 80 | Apache with mod_rewrite and PHP-FPM proxy |
+   | `dockerized_laravel_dev-php-fpm` | PHP Runtime | 9000 | PHP-FPM 8.3 with custom php.ini |
    | `dockerized_laravel_dev-mysql` | Database | 3307 | MySQL 8.0 |
    | `dockerized_laravel_dev-redis` | Cache Server | 6379 | Redis Alpine |
    | `dockerized_laravel_dev-workspace` | Dev Tools & Commands | 5173 | For running artisan, composer, npm |
@@ -101,6 +101,12 @@ Once containers are running, initialize your Laravel application:
 ### Development Environment Features
 
 Key features available in development:
+
+- PHP Configuration
+  - PHP 8.3 with development-optimized settings
+  - Custom php.ini with error reporting enabled
+  - Development-friendly memory limits
+  - Common PHP extensions pre-installed
 
 - Live Code Updates
   - Direct volume mounting for immediate code changes
@@ -140,8 +146,13 @@ Key features available in development:
 
 Production optimizations include:
 
+- PHP Configuration
+  - OpCache enabled and optimized
+  - Production error reporting settings
+  - Restricted file access permissions
+  - Performance-tuned PHP-FPM pool settings
+
 - Performance
-  - PHP OpCache enabled and configured
   - Apache with optimized settings
   - Redis for session and cache storage
   - MySQL 8.0 with performance configuration
@@ -208,7 +219,7 @@ docker compose -f compose.prod.yaml up -d    # Start
 docker compose -f compose.prod.yaml down     # Stop
 ```
 
-## 🌐 Accessing Your Application
+## Accessing Your Application
 
 | Environment | URL | Notes |
 |------------|-----|-------|
@@ -236,4 +247,5 @@ docker compose -f compose.prod.yaml down     # Stop
 4. **PHP-FPM Issues**
    - Check PHP-FPM logs: `docker logs dockerized_laravel_dev-php-fpm`
    - Verify PHP-FPM is listening on port 9000
-   - Ensure Apache is properly configured to work with PHP-FPM
+   - Check php.ini configuration in the PHP-FPM container
+   - Ensure Apache is properly configured to proxy requests to PHP-FPM

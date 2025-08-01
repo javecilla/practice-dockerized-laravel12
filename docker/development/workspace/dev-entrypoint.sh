@@ -17,7 +17,9 @@ setup_laravel() {
     
     # Add execute where needed
     find . -type f -name "*.sh" -exec chmod +x {} \;
-    chmod +x artisan
+    if [ -f "artisan" ]; then
+        chmod +x artisan
+    fi
     
     # Set directory permissions
     find . -type d -exec chmod 755 {} \;
@@ -25,18 +27,23 @@ setup_laravel() {
     # Ensure storage and bootstrap/cache are writable
     chmod -R 775 storage bootstrap/cache
     chown -R ${USER_ID}:${GROUP_ID} storage bootstrap/cache
-    
-    # Switch to laravel user and keep container running
-    exec gosu ${USER_ID}:${GROUP_ID} tail -f /dev/null
+
+    echo "Starting workspace container..."
 }
 
 # Main entrypoint logic
 case "$1" in
     serve)
-        echo "Starting workspace container..."
         setup_laravel
+        if [ -f "artisan" ]; then
+            exec gosu ${USER_ID}:${GROUP_ID} php artisan serve --host=0.0.0.0 --port=8000
+        else
+            echo "Laravel artisan not found. Container will exit."
+            exit 1
+        fi
         ;;
     *)
-        exec "$@"
+        setup_laravel
+        exec gosu ${USER_ID}:${GROUP_ID} "$@"
         ;;
 esac
